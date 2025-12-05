@@ -1,0 +1,21 @@
+# Ignora tot folderul de lucru Vivado
+/work/
+
+# Ignora fisiere temporare Vivado
+*.jou
+*.log
+*.str
+*.pb
+*.wdb
+*.tmp
+*.os
+.Xil/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+
+# Dar NU ignora sursele noastre
+!/src/
+!/constrs/

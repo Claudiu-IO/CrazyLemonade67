@@ -21,8 +21,12 @@ module modulul_principal(
     wire rx_done;
     reg [7:0] tx_data;
     reg tx_start;
-    wire tx_done;       // Semnal critic: ne spune cand s-a terminat trimiterea
+    wire tx_done;       
     wire tx_active;
+
+    // --- DETECTOR DE FRONT & PULSE STRETCHER ---
+    reg old_rx_done; 
+    reg [4:0] pulse_timer = 0; // Timer pentru a lungi semnalul catre Enigma
 
     // Instantiere UART
     uart_rx #(.CLKS_PER_BIT(10416)) inst_rx (
@@ -39,25 +43,23 @@ module modulul_principal(
     reg [7:0] msg_index;
     reg [2:0] msg_select; 
     
-    // Functie care returneaza litera de la indexul curent
     function [7:0] get_char_msg;
         input [2:0] sel;
         input [7:0] idx;
         begin
             case(sel)
-                // 0: MENIU PRINCIPAL
+                // MENIU PRINCIPAL
                 0: case(idx)
-                   0: get_char_msg = 13;  1: get_char_msg = 10; // New Line
+                   0: get_char_msg = 13;  1: get_char_msg = 10; 
                    2: get_char_msg = "M"; 3: get_char_msg = "E"; 4: get_char_msg = "N"; 5: get_char_msg = "U";
                    6: get_char_msg = ":"; 7: get_char_msg = " "; 8: get_char_msg = "["; 9: get_char_msg = "P";
                    10: get_char_msg = "]"; 11: get_char_msg = "l"; 12: get_char_msg = "u"; 13: get_char_msg = "g";
                    14: get_char_msg = ","; 15: get_char_msg = " "; 16: get_char_msg = "["; 17: get_char_msg = "S";
                    18: get_char_msg = "]"; 19: get_char_msg = "t"; 20: get_char_msg = "a"; 21: get_char_msg = "r";
-                   22: get_char_msg = "t"; 23: get_char_msg = ">"; 24: get_char_msg = 0; // NULL terminator
+                   22: get_char_msg = "t"; 23: get_char_msg = ">"; 24: get_char_msg = 0; 
                    default: get_char_msg = 0;
                    endcase
-                
-                // 1: PLUGBOARD PROMPT
+                // PLUGBOARD
                 1: case(idx)
                    0: get_char_msg = 13;  1: get_char_msg = 10;
                    2: get_char_msg = "P"; 3: get_char_msg = "l"; 4: get_char_msg = "u"; 5: get_char_msg = "g";
@@ -65,15 +67,13 @@ module modulul_principal(
                    10: get_char_msg = ":"; 11: get_char_msg = 0;
                    default: get_char_msg = 0;
                    endcase
-                
-                // 3: CRYPT PROMPT
+                // CRYPT
                 3: case(idx)
                    0: get_char_msg = 13;  1: get_char_msg = 10;
                    2: get_char_msg = "C"; 3: get_char_msg = "R"; 4: get_char_msg = "Y"; 5: get_char_msg = "P";
                    6: get_char_msg = "T"; 7: get_char_msg = ":"; 8: get_char_msg = 0;
                    default: get_char_msg = 0;
                    endcase
-                   
                 default: get_char_msg = 0;
             endcase
         end
@@ -81,18 +81,17 @@ module modulul_principal(
 
     // --- 3. STATE MACHINE ---
     localparam STATE_INIT       = 0;
-    localparam STATE_PRINT_CHECK= 1; // Verifica ce litera urmeaza
-    localparam STATE_PRINT_SEND = 2; // Da comanda la UART
-    localparam STATE_PRINT_WAIT = 3; // Asteapta sa termine UART
-    localparam STATE_MENU       = 4; // Asteapta tasta utilizator
+    localparam STATE_PRINT_CHECK= 1; 
+    localparam STATE_PRINT_SEND = 2; 
+    localparam STATE_PRINT_WAIT = 3; 
+    localparam STATE_MENU       = 4; 
     localparam STATE_PLUG_1     = 5;
     localparam STATE_PLUG_2     = 6;
     localparam STATE_CRYPT      = 7;
 
     reg [3:0] state = STATE_INIT;
-    reg [3:0] return_state; // Unde ne intoarcem dupa printare
+    reg [3:0] return_state; 
     
-    // Memorie Plugboard
     reg [4:0] plugboard_mem [0:25];
     reg [4:0] pb_char1;
     integer i;
@@ -106,115 +105,100 @@ module modulul_principal(
     wire [4:0] d1, d2, d3;
 
     always @(posedge clk) begin
+        old_rx_done <= rx_done;
+        
         if (reset_clean) begin
             state <= STATE_INIT;
             tx_start <= 0;
-            // Reset Plugboard 1-la-1
+            pulse_timer <= 0;
+            enigma_valid <= 0;
             for (i=0; i<26; i=i+1) plugboard_mem[i] <= i;
         end else begin
         
-            // Fail-safe: tx_start trebuie sa fie impuls scurt
             if (tx_start == 1) tx_start <= 0;
 
-            case (state)
-                // --- INIT ---
-                STATE_INIT: begin
-                    msg_select <= 0; // Selectam textul MENIU
-                    msg_index <= 0;
-                    return_state <= STATE_MENU;
-                    state <= STATE_PRINT_CHECK;
-                end
+            // --- PULSE STRETCHER LOGIC (NOU) ---
+            // Tinem semnalul valid sus timp de 16 ceasuri (160ns)
+            // Asta garanteaza ca ceasul lent (80ns) il prinde
+            if (pulse_timer > 0) begin
+                enigma_valid <= 1;
+                pulse_timer <= pulse_timer - 1;
+            end else begin
+                enigma_valid <= 0;
+            end
 
-                // --- LOGICA DE PRINTARE (MODIFICATA) ---
+            case (state)
+                // INIT & PRINT logic
+                STATE_INIT: begin
+                    msg_select <= 0; msg_index <= 0;
+                    return_state <= STATE_MENU; state <= STATE_PRINT_CHECK;
+                end
                 STATE_PRINT_CHECK: begin
                     char_to_send = get_char_msg(msg_select, msg_index);
-                    if (char_to_send == 0) begin
-                        state <= return_state; // Text terminat -> Mergem la destinatie
-                    end else begin
-                        state <= STATE_PRINT_SEND;
-                    end
+                    if (char_to_send == 0) state <= return_state; 
+                    else state <= STATE_PRINT_SEND;
                 end
-
                 STATE_PRINT_SEND: begin
-                    // Trimitem doar daca UART e liber
                     if (tx_active == 0) begin
-                        tx_data <= char_to_send;
-                        tx_start <= 1; // Start transmisie
-                        state <= STATE_PRINT_WAIT;
+                        tx_data <= char_to_send; tx_start <= 1; state <= STATE_PRINT_WAIT;
                     end
                 end
-
                 STATE_PRINT_WAIT: begin
-                    // Asteptam semnalul tx_done (hardware-ul zice "Gata, am trimis bitii")
                     if (tx_done == 1) begin
-                        msg_index <= msg_index + 1; // Trecem la litera urmatoare
-                        state <= STATE_PRINT_CHECK;
+                        msg_index <= msg_index + 1; state <= STATE_PRINT_CHECK;
                     end
                 end
 
-                // --- LOGICA MENIU ---
+                // MENIU
                 STATE_MENU: begin
-                    if (rx_done) begin
+                    if (rx_done && !old_rx_done) begin
                         if (rx_data == "P" || rx_data == "p") begin
                             msg_select <= 1; msg_index <= 0;
-                            return_state <= STATE_PLUG_1;
-                            state <= STATE_PRINT_CHECK;
+                            return_state <= STATE_PLUG_1; state <= STATE_PRINT_CHECK;
                         end
                         else if (rx_data == "S" || rx_data == "s") begin
                             msg_select <= 3; msg_index <= 0;
-                            return_state <= STATE_CRYPT;
-                            state <= STATE_PRINT_CHECK;
+                            return_state <= STATE_CRYPT; state <= STATE_PRINT_CHECK;
                         end
                     end
                 end
 
-                // --- PLUGBOARD LOGIC ---
+                // PLUGBOARD
                 STATE_PLUG_1: begin
-                    if (rx_done) begin
-                        if (rx_data == "X" || rx_data == "x") begin
-                            state <= STATE_INIT; // Iesire
-                        end
+                    if (rx_done && !old_rx_done) begin
+                        if (rx_data == "X" || rx_data == "x") state <= STATE_INIT; 
                         else if (rx_data >= "A" && rx_data <= "Z") begin
-                            // Echo la litera tastata
-                            tx_data <= rx_data; tx_start <= 1;
-                            
+                            tx_data <= rx_data; tx_start <= 1; 
                             pb_char1 <= rx_data - "A";
                             state <= STATE_PLUG_2;
                         end
                     end
                 end
-
                 STATE_PLUG_2: begin
-                    // Aici e trick-ul: trebuie sa asteptam sa se termine ECHO-ul de la litera 1
-                    // Dar pt simplificare, UART-ul se descurca daca tastam incet.
-                    if (rx_done) begin
+                    if (rx_done && !old_rx_done) begin
                         if (rx_data >= "A" && rx_data <= "Z") begin
-                            // Echo la litera 2
-                            tx_data <= rx_data; tx_start <= 1;
-                            
-                            // Facem schimbul
+                            tx_data <= rx_data; tx_start <= 1; 
                             plugboard_mem[pb_char1] <= rx_data - "A";
                             plugboard_mem[rx_data - "A"] <= pb_char1;
-                            
-                            state <= STATE_PLUG_1; // Cerem urmatoarea pereche
+                            state <= STATE_PLUG_1; 
                         end
                     end
                 end
 
-                // --- CRYPT LOGIC ---
+                // CRIPTARE CU FIX PENTRU CLOCK LENT
                 STATE_CRYPT: begin
-                    enigma_valid <= 0; // default 0
-                    
                     // 1. Primire de la PC
-                    if (rx_done) begin
-                        if (rx_data == 27) state <= STATE_INIT; // ESC
+                    if (rx_done && !old_rx_done) begin
+                        if (rx_data == 27) state <= STATE_INIT; 
                         else if (rx_data >= "A" && rx_data <= "Z") begin
                             enigma_in <= plugboard_mem[rx_data - "A"];
-                            enigma_valid <= 1;
+                            
+                            // AICI E SCHIMBAREA: Nu setam enigma_valid direct, ci pornim timerul
+                            pulse_timer <= 16; // 160ns puls -> Destul pentru ceasul de 80ns
                         end
                     end
                     
-                    // 2. Primire de la Enigma si trimitere la PC
+                    // 2. Primire de la Enigma
                     if (enigma_valid_out && !old_valid_out) begin
                          tx_data <= plugboard_mem[enigma_out] + "A";
                          tx_start <= 1;
@@ -226,7 +210,7 @@ module modulul_principal(
         end
     end
 
-    // --- ENIGMA ---
+    // Instantiere Enigma
     nucleu_enigma inst_enigma (
         .clk(clk_slow_enigma), .rst(reset_clean),
         .start_pos1(5'd0), .start_pos2(5'd0), .start_pos3(5'd0), .load_config(1'b0),
@@ -235,7 +219,6 @@ module modulul_principal(
         .current_pos1(d1), .current_pos2(d2), .current_pos3(d3)
     );
     
-    // Debug pe LED-uri: arata starea curenta si ultima tasta primita
     assign led[3:0] = state;
     assign led[15:8] = rx_data;
 

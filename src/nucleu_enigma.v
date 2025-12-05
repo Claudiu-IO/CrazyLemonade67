@@ -1,22 +1,319 @@
 module nucleu_enigma(
     input clk,
     input rst,
-    input valid_in,          
-    input [4:0] char_in,     
-    output reg [4:0] char_out, 
-    output reg valid_out     
+    input valid_in,
+    input [4:0] char_in,     // 0=A, 1=B ... 25=Z
+    output reg [4:0] char_out,
+    output reg valid_out
 );
 
+    // --- ROTOR I: E K M F L G D Q V Z N T O W Y H X U S P A I B R C J ---
+    function [4:0] rotor1_fwd;
+        input [4:0] x;
+        case (x)
+            0: rotor1_fwd=4;  
+            1: rotor1_fwd=10; 
+            2: rotor1_fwd=12; 
+            3: rotor1_fwd=5;  
+            4: rotor1_fwd=11;
+            5: rotor1_fwd=6;  
+            6: rotor1_fwd=3;  
+            7: rotor1_fwd=16; 
+            8: rotor1_fwd=21; 
+            9: rotor1_fwd=25;
+            10: rotor1_fwd=13;
+            11: rotor1_fwd=19;
+            12: rotor1_fwd=14;
+            13: rotor1_fwd=22;
+            14: rotor1_fwd=24;
+            15: rotor1_fwd=7; 
+            16: rotor1_fwd=23;
+            17: rotor1_fwd=20;
+            18: rotor1_fwd=18;
+            19: rotor1_fwd=15;
+            20: rotor1_fwd=0; 
+            21: rotor1_fwd=8; 
+            22: rotor1_fwd=1; 
+            23: rotor1_fwd=17;
+            24: rotor1_fwd=2;
+            25: rotor1_fwd=9; 
+            default: rotor1_fwd=0;
+        endcase
+    endfunction
+
+    function [4:0] rotor1_rev;
+        input [4:0] x;
+        case (x)
+            0: rotor1_rev=20; 
+            1: rotor1_rev=22; 
+            2: rotor1_rev=24; 
+            3: rotor1_rev=6;  
+            4: rotor1_rev=0;
+            5: rotor1_rev=3;  
+            6: rotor1_rev=5;  
+            7: rotor1_rev=15; 
+            8: rotor1_rev=21; 
+            9: rotor1_rev=25;
+            10: rotor1_rev=1; 
+            11: rotor1_rev=4; 
+            12: rotor1_rev=2; 
+            13: rotor1_rev=10;
+            14: rotor1_rev=12;
+            15: rotor1_rev=19;
+            16: rotor1_rev=7; 
+            17: rotor1_rev=23;
+            18: rotor1_rev=18;
+            19: rotor1_rev=11;
+            20: rotor1_rev=17;
+            21: rotor1_rev=8; 
+            22: rotor1_rev=13;
+            23: rotor1_rev=16;
+            24: rotor1_rev=14;
+            25: rotor1_rev=9; 
+            default: rotor1_rev=0;
+        endcase
+    endfunction
+
+    // --- ROTOR II: A J D K S I R U X B L H W T M C Q G Z N P Y F V O E ---
+    function [4:0] rotor2_fwd;
+        input [4:0] x;
+        case (x)
+            0: rotor2_fwd=0;  
+            1: rotor2_fwd=9;  
+            2: rotor2_fwd=3;  
+            3: rotor2_fwd=10; 
+            4: rotor2_fwd=18;
+            5: rotor2_fwd=8;  
+            6: rotor2_fwd=17; 
+            7: rotor2_fwd=20; 
+            8: rotor2_fwd=23; 
+            9: rotor2_fwd=1;
+            10: rotor2_fwd=11;
+            11: rotor2_fwd=7; 
+            12: rotor2_fwd=22;
+            13: rotor2_fwd=19;
+            14: rotor2_fwd=12;
+            15: rotor2_fwd=2; 
+            16: rotor2_fwd=16;
+            17: rotor2_fwd=6; 
+            18: rotor2_fwd=25;
+            19: rotor2_fwd=13;
+            20: rotor2_fwd=15;
+            21: rotor2_fwd=24;
+            22: rotor2_fwd=5; 
+            23: rotor2_fwd=21;
+            24: rotor2_fwd=14;
+            25: rotor2_fwd=4; 
+            default: rotor2_fwd=0;
+        endcase
+    endfunction
+
+    function [4:0] rotor2_rev;
+        input [4:0] x;
+        case (x)
+            0: rotor2_rev=0;  
+            1: rotor2_rev=9;  
+            2: rotor2_rev=15; 
+            3: rotor2_rev=2;  
+            4: rotor2_rev=25;
+            5: rotor2_rev=22; 
+            6: rotor2_rev=17; 
+            7: rotor2_rev=11; 
+            8: rotor2_rev=5;  
+            9: rotor2_rev=1;
+            10: rotor2_rev=3; 
+            11: rotor2_rev=10;
+            12: rotor2_rev=14;
+            13: rotor2_rev=19;
+            14: rotor2_rev=24;
+            15: rotor2_rev=20;
+            16: rotor2_rev=16;
+            17: rotor2_rev=6; 
+            18: rotor2_rev=4; 
+            19: rotor2_rev=13;
+            20: rotor2_rev=7; 
+            21: rotor2_rev=23;
+            22: rotor2_rev=12;
+            23: rotor2_rev=8; 
+            24: rotor2_rev=21;
+            25: rotor2_rev=18; 
+            default: rotor2_rev=0;
+        endcase
+    endfunction
+
+    // --- ROTOR III: B D F H J L C P R T X V Z N Y E I W G A K M U S Q O ---
+    function [4:0] rotor3_fwd;
+        input [4:0] x;
+        case (x)
+            0: rotor3_fwd=1;  
+            1: rotor3_fwd=3;  
+            2: rotor3_fwd=5;  
+            3: rotor3_fwd=7;  
+            4: rotor3_fwd=9;
+            5: rotor3_fwd=11; 
+            6: rotor3_fwd=2;  
+            7: rotor3_fwd=15; 
+            8: rotor3_fwd=17; 
+            9: rotor3_fwd=19;
+            10: rotor3_fwd=23;
+            11: rotor3_fwd=21;
+            12: rotor3_fwd=25;
+            13: rotor3_fwd=13;
+            14: rotor3_fwd=24;
+            15: rotor3_fwd=4; 
+            16: rotor3_fwd=8; 
+            17: rotor3_fwd=22;
+            18: rotor3_fwd=6; 
+            19: rotor3_fwd=0;
+            20: rotor3_fwd=10;
+            21: rotor3_fwd=12;
+            22: rotor3_fwd=20;
+            23: rotor3_fwd=18;
+            24: rotor3_fwd=16;
+            25: rotor3_fwd=14; 
+            default: rotor3_fwd=0;
+        endcase
+    endfunction
+
+    function [4:0] rotor3_rev;
+        input [4:0] x;
+        case (x)
+            0: rotor3_rev=19; 
+            1: rotor3_rev=0;  
+            2: rotor3_rev=6;  
+            3: rotor3_rev=1;  
+            4: rotor3_rev=15;
+            5: rotor3_rev=2;  
+            6: rotor3_rev=18; 
+            7: rotor3_rev=3;  
+            8: rotor3_rev=16; 
+            9: rotor3_rev=4;
+            10: rotor3_rev=20;
+            11: rotor3_rev=5; 
+            12: rotor3_rev=21;
+            13: rotor3_rev=13;
+            14: rotor3_rev=25;
+            15: rotor3_rev=7; 
+            16: rotor3_rev=24;
+            17: rotor3_rev=8; 
+            18: rotor3_rev=23;
+            19: rotor3_rev=9;
+            20: rotor3_rev=22;
+            21: rotor3_rev=11;
+            22: rotor3_rev=17;
+            23: rotor3_rev=10;
+            24: rotor3_rev=14;
+            25: rotor3_rev=12; 
+            default: rotor3_rev=0;
+        endcase
+    endfunction
+
+    // --- REFLECTOR B: Y R U H Q S L D P X N G O K M I E B F Z C W V J A T ---
+    function [4:0] reflector_b;
+        input [4:0] x;
+        case (x)
+            0: reflector_b=24; 
+            1: reflector_b=17; 
+            2: reflector_b=20; 
+            3: reflector_b=7;  
+            4: reflector_b=16;
+            5: reflector_b=18; 
+            6: reflector_b=11; 
+            7: reflector_b=3;  
+            8: reflector_b=15; 
+            9: reflector_b=23;
+            10: reflector_b=13;
+            11: reflector_b=6; 
+            12: reflector_b=14;
+            13: reflector_b=10;
+            14: reflector_b=12;
+            15: reflector_b=8; 
+            16: reflector_b=4; 
+            17: reflector_b=1; 
+            18: reflector_b=5; 
+            19: reflector_b=25;
+            20: reflector_b=2; 
+            21: reflector_b=22;
+            22: reflector_b=21;
+            23: reflector_b=9; 
+            24: reflector_b=0;
+            25: reflector_b=19; 
+            default: reflector_b=0;
+        endcase
+    endfunction
+
+    // Pozitiile rotoarelor (R1=Stanga, R2=Mijloc, R3=Dreapta/Rapid)
+    reg [4:0] pos1 = 0;
+    reg [4:0] pos2 = 0;
+    reg [4:0] pos3 = 0;
+
+    // Fire pentru conexiunile intermediare (Datapath)
+    reg [4:0] r3_in, r3_out;
+    reg [4:0] r2_in, r2_out;
+    reg [4:0] r1_in, r1_out;
+    reg [4:0] refl_out;
+    reg [4:0] r1_inv_in, r1_inv_out;
+    reg [4:0] r2_inv_in, r2_inv_out;
+    reg [4:0] r3_inv_in, r3_inv_out;
+
     always @(posedge clk) begin
-        if (valid_in) begin
-            if (char_in == 25) 
-                char_out <= 0; 
-            else 
-                char_out <= char_in + 1;
-                
-            valid_out <= 1; 
+        if (rst) begin
+            valid_out <= 0;
+            char_out  <= 0;
+            pos1 <= 0; 
+            pos2 <= 0; 
+            pos3 <= 0;
+        end else if (valid_in) begin
+            // --- A. STEPPING (Mecanism Odometru) ---
+            // R3 se misca la fiecare tasta. Daca R3 ajunge la 25 si trece la 0, misca R2
+            if (pos3 == 25) begin
+                pos3 <= 0;
+                if (pos2 == 25) begin
+                    pos2 <= 0;
+                    if (pos1 == 25) pos1 <= 0; else pos1 <= pos1 + 1;
+                end else begin
+                    pos2 <= pos2 + 1;
+                end
+            end else begin
+                pos3 <= pos3 + 1;
+            end
+
+            // --- B. DATAPATH (Calcul Combinational in interiorul ceasului) 
+            // 1. ROTOR 3 
+            // Formula: index = (char + pos) % 26 -> LUT -> out = (val - pos + 26) % 26
+            r3_in  = (char_in + pos3) % 26; 
+            r3_out = (rotor3_fwd(r3_in) + 26 - pos3) % 26;
+
+            // 2. ROTOR 2 (FORWARD) - Mijloc
+            r2_in  = (r3_out + pos2) % 26;
+            r2_out = (rotor2_fwd(r2_in) + 26 - pos2) % 26;
+
+            // 3. ROTOR 1 (FORWARD) - Lent
+            r1_in  = (r2_out + pos1) % 26;
+            r1_out = (rotor1_fwd(r1_in) + 26 - pos1) % 26;
+
+            // 4. REFLECTOR
+            refl_out = reflector_b(r1_out);
+
+            // 5. ROTOR 1 (INVERSE)
+            r1_inv_in  = (refl_out + pos1) % 26;
+            r1_inv_out = (rotor1_rev(r1_inv_in) + 26 - pos1) % 26;
+
+            // 6. ROTOR 2 (INVERSE)
+            r2_inv_in  = (r1_inv_out + pos2) % 26;
+            r2_inv_out = (rotor2_rev(r2_inv_in) + 26 - pos2) % 26;
+
+            // 7. ROTOR 3 (INVERSE)
+            r3_inv_in  = (r2_inv_out + pos3) % 26;
+            r3_inv_out = (rotor3_rev(r3_inv_in) + 26 - pos3) % 26;
+
+            // --- FINAL ---
+            char_out <= r3_inv_out;
+            valid_out <= 1;
+
         end else begin
             valid_out <= 0;
         end
     end
+
 endmodule

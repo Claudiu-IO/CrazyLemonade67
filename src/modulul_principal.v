@@ -108,11 +108,10 @@ module modulul_principal(
         old_rx_done <= rx_done;
         
         if (reset_clean) begin
-            state <= STATE_INIT;
+            state <= 0;
             tx_start <= 0;
             pulse_timer <= 0;
-            enigma_valid <= 0;
-            for (i=0; i<26; i=i+1) plugboard_mem[i] <= i;
+  
         end else begin
         
             if (tx_start == 1) tx_start <= 0;

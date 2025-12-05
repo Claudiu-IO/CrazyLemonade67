@@ -20,7 +20,7 @@ module modul_principal(
     wire enigma_ready;
 
     // 1. Curatam butonul de reset (folosind fisierul butoane.v)
-    debouncer instanta_btn (
+    butoane instanta_btn (
         .clk(clk),
         .btn_in(btnC),
         .btn_out(rst_clean)

@@ -106,19 +106,18 @@ module modulul_principal(
         end
     end
 
-    // --- 7. UART TRANSMITTER (FPGA -> PC) ---
-    // Trebuie sa aveti modulul uart_tx in proiect!
+   // --- 7. UART TRANSMITTER (FPGA -> PC) ---
     uart_tx #(
         .CLKS_PER_BIT(10416)
     ) inst_tx (
         .clk(clk),
-        .reset_n(~reset_clean), // Atentie daca reset e activ pe 0 sau 1
+        // .reset_n(~reset_clean),  <--- STERGE LINIA ASTA COMPLET!
         .tx_start(tx_start_tick),
         .tx_din(tx_data_ascii),
-        .s_tick(1'b1), // Daca modulul vostru cere tick extern, altfel stergeti
-        .tx_done_tick(tx_done_tick),
-        .tx(uart_tx_out),
-        .o_busy(tx_active) // Daca aveti portul asta
+        // .s_tick(1'b1), <--- STERGE SI ASTA daca nu ai port s_tick in codul tau
+        .tx_active(tx_active), // <--- SCHIMBAT NUMELE: la tine e tx_active, nu o_busy
+        .tx_serial(uart_tx_out), // <--- SCHIMBAT NUMELE: la tine e tx_serial, nu tx
+        .tx_done(tx_done_tick)   // <--- SCHIMBAT NUMELE: la tine e tx_done, nu tx_done_tick
     );
 
     // --- 8. AFISARE PE 7-SEGMENTE ---

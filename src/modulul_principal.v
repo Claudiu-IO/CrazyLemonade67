@@ -218,7 +218,14 @@ module modulul_principal(
         .current_pos1(d1), .current_pos2(d2), .current_pos3(d3)
     );
     
-    assign led[3:0] = state;
-    assign led[15:8] = rx_data;
+    // Led 3-0: Arata in ce STARE se afla masina (Init, Menu, Crypt, etc)
+    assign led[3:0]   = state;
+    
+    // Led 7-4: Le punem pe ZERO ca sa scapam de "Z"-ul albastru
+    assign led[7:4]   = 4'b0000;
+    
+    // Led 15-8: Arata ultimul caracter primit prin UART (ASCII)
+    // Nota: Va fi ROSU (X) la inceput pana cand primesti prima tasta. E normal.
+    assign led[15:8]  = rx_data;
 
 endmodule

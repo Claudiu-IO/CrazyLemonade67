@@ -3,8 +3,20 @@ module nucleu_enigma(
     input rst,
     input valid_in,
     input [4:0] char_in,     // 0=A, 1=B ... 25=Z
+    
+    // <--- MODIFICARE 1: Adaugam intrari pentru pozitiile de start
+    input [4:0] start_pos1,  // Legat la Switch-uri in Top Module
+    input [4:0] start_pos2,
+    input [4:0] start_pos3,
+    input load_config,       // Semnal (buton) sa incarcam switch-urile
+    
     output reg [4:0] char_out,
-    output reg valid_out
+    output reg valid_out,
+    
+    // Optional: Scoatem pozitia curenta sa o vedem pe 7-Seg
+    output [4:0] current_pos1, 
+    output [4:0] current_pos2,
+    output [4:0] current_pos3
 );
     
     // ROTOR I
@@ -39,7 +51,11 @@ module nucleu_enigma(
     reg [4:0] pos1 = 0;
     reg [4:0] pos2 = 0;
     reg [4:0] pos3 = 0;
-
+    
+    assign current_pos1 = pos1;
+    assign current_pos2 = pos2;
+    assign current_pos3 = pos3;
+    
     // Logica COMBINATIONALA
     // Acestea se calculeaza instantaneu, fara ceas
     wire [4:0] r3_in, r3_out;
@@ -78,13 +94,16 @@ module nucleu_enigma(
     assign r3_inv_out = (rotor3_rev(r3_inv_in) + 26 - pos3) % 26;
 
     always @(posedge clk) begin
-        if (rst) begin
+        // <--- MODIFICARE 2: Logica de incarcare
+        if (rst || load_config) begin 
             valid_out <= 0;
             char_out  <= 0;
-            pos1 <= 0; 
-            pos2 <= 0; 
-            pos3 <= 0;
+            // Aici e secretul: Incarcam valorile de pe switch-uri, nu 0!
+            pos1 <= start_pos1; 
+            pos2 <= start_pos2; 
+            pos3 <= start_pos3;
         end else if (valid_in) begin
+            // Logica de incrementare (Stepping)
             if (pos3 == 25) begin
                 pos3 <= 0;
                 if (pos2 == 25) begin
